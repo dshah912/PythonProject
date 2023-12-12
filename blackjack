@@ -1,122 +1,193 @@
+# Blackjack Game (directions to play shows when you start)
 import random
+import time
 
+suits = ("Spades", "Clubs", "Hearts", "Diamonds")
+ranks = ("2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A")
+values = {"1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10, "J": 10, "Q": 10, "K": 10, "A": 11,}
+playing = True
+
+# CLASSES:
 class Card:
     def __init__(self, suit, rank):
+        # Initialize card with suit and rank
         self.suit = suit
         self.rank = rank
 
     def __str__(self):
-        return f"{self.rank} of {self.suit}"
+        # Return string representation of the card
+        return self.rank + " of " + self.suit
 
 class Deck:
     def __init__(self):
-        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
-        ranks = ['Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King', 'Ace']
-        self.cards = [Card(suit, rank) for suit in suits for rank in ranks]
-        random.shuffle(self.cards)
+        # Initialize deck with a list of cards
+        self.deck = []
+        for suit in suits:
+            for rank in ranks:
+                self.deck.append(Card(suit, rank))
 
-    def draw_card(self):
-        return self.cards.pop()
+    def __str__(self):
+        # Return string representation of the deck
+        deck_comp = ""
+        for card in self.deck:
+            deck_comp += "\n " + card.__str__()
+        return "The deck has:" + deck_comp
 
-class Player:
-    def __init__(self, name):
-        self.name = name
-        self.hand = []
+    def shuffle(self):  # Shuffle Deck
+        random.shuffle(self.deck)
 
-    def add_card_to_hand(self, card):
-        self.hand.append(card)
+    def deal(self):     # Deal a single card from the deck
+        single_card = self.deck.pop()
+        return single_card
 
-    def calculate_hand_value(self):
-        value = 0
-        num_aces = 0
-
-        for card in self.hand:
-            if card.rank in ['Jack', 'Queen', 'King']:
-                value += 10
-            elif card.rank == 'Ace':
-                value += 11
-                num_aces += 1
-            else:
-                value += int(card.rank)
-
-        # Adjust the value for aces
-        while value > 21 and num_aces:
-            value -= 10
-            num_aces -= 1
-
-        return value
-
-class BlackjackGame:
+class Hand:
     def __init__(self):
-        self.deck = Deck()
-        self.player = Player("Player")
-        self.dealer = Player("Dealer")
+        # Initialize hand with an empty list of cards, value, and aces count
+        self.cards = []
+        self.value = 0
+        self.aces = 0
 
-    def deal_initial_cards(self):
-        for _ in range(2):
-            self.player.add_card_to_hand(self.deck.draw_card())
-            self.dealer.add_card_to_hand(self.deck.draw_card())
+    def add_card(self, card):
+        # Add a card to the hand, update value, and check for aces
+        self.cards.append(card)
+        self.value += values[card.rank]
+        if card.rank == "A":
+            self.aces += 1
 
-    def display_game_status(self, show_all_cards=False):
-        print("\n=== Current Game Status ===")
-        print(f"{self.player.name}'s Hand: {', '.join(str(card) for card in self.player.hand)}")
-        if show_all_cards:
-            print(f"{self.dealer.name}'s Hand: {', '.join(str(card) for card in self.dealer.hand)}")
+    def adjust_for_ace(self):  # Adjustment based on if ace is 1 or 11
+        # Adjust hand value for aces when needed
+        while self.value > 21 and self.aces:
+            self.value -= 10
+            self.aces -= 1
+
+
+# FUNCTION DEFINITIONS:
+def hit(deck, hand):
+    # Add a card to the hand and adjust for aces
+    hand.add_card(deck.deal())
+    hand.adjust_for_ace()
+
+
+def hit_or_stand(deck, hand):  # Prompt the player to hit or stand
+    global playing
+
+    while True:
+        x = input("\nWould you like to Hit or Stand? Enter [h/s] ")
+
+        if x[0].lower() == "h":  # Hit if the player chooses
+            hit(deck, hand)
+
+        elif x[0].lower() == "s":  # Stand if the player chooses
+            print("Player stands. Dealer is playing.")
+            playing = False
+
         else:
-            print(f"{self.dealer.name}'s Hand: {self.dealer.hand[0]}, [Hidden Card]")
+            print("Sorry, Invalid Input. Please enter [h/s].")
+            continue
+        break
 
-    def player_turn(self):
-        while True:
-            self.display_game_status()
-            player_choice = input("Do you want to 'hit' or 'stand'? ").lower()
-            if player_choice == 'hit':
-                self.player.add_card_to_hand(self.deck.draw_card())
-                if self.player.calculate_hand_value() > 21:
-                    self.display_game_status(show_all_cards=True)
-                    print("Bust! You lose.")
-                    return 'bust'
-            elif player_choice == 'stand':
-                return 'stand'
-            else:
-                print("Invalid choice. Please enter 'hit' or 'stand'.")
 
-    def dealer_turn(self):
-        while self.dealer.calculate_hand_value() < 17:
-            self.dealer.add_card_to_hand(self.deck.draw_card())
-        self.display_game_status(show_all_cards=True)
+def show_some(player, dealer):  # Show the player's hand and the first of the dealer's cards
+    print("\nPlayer's Hand:", *player.cards, sep="\n ")
+    print("Player's Hand =", player.value)
+    print("\nDealer's Hand:")
+    print(" <card hidden>")
+    print("", dealer.cards[1])
 
-    def determine_winner(self):
-        player_value = self.player.calculate_hand_value()
-        dealer_value = self.dealer.calculate_hand_value()
 
-        if player_value > 21:
-            return "Dealer wins! You busted."
-        elif dealer_value > 21:
-            return "You win! Dealer busted."
-        elif player_value == dealer_value:
-            return "It's a tie!"
-        elif player_value > dealer_value:
-            return "You win!"
+def show_all(player, dealer):
+    print("\nPlayer's Hand:", *player.cards, sep="\n ")
+    print("Player's Hand =", player.value)
+    print("\nDealer's Hand:", *dealer.cards, sep="\n ")
+    print("Dealer's Hand =", dealer.value)
+
+
+def player_busts(player, dealer):
+    print("\n Player busts! ")
+
+
+def player_wins(player, dealer):
+    print("\n Player wins! ")
+
+
+def dealer_busts(player, dealer):
+    print("\n Dealer busts! You win! ")
+
+
+def dealer_wins(player, dealer):
+    print("\n Dealer wins! ")
+
+
+def push(player, dealer):
+    print("\nIts a tie!")
+
+
+# GAMEPLAY
+while True:
+    print(" WELCOME TO BLACKJACK! ")
+    print(
+        "Rules: Get as close to 21 as you can without going over\n\
+        Dealer hits until they reaches 17.\n\
+        Aces count as 1 or 11."
+    )
+
+    # Create & shuffle the deck, deal two cards to each player
+    deck = Deck()
+    deck.shuffle()
+
+    player_hand = Hand()
+    player_hand.add_card(deck.deal())
+    player_hand.add_card(deck.deal())
+
+    dealer_hand = Hand()
+    dealer_hand.add_card(deck.deal())
+    dealer_hand.add_card(deck.deal())
+
+    # Show the cards:
+    show_some(player_hand, dealer_hand)
+
+    while playing:
+
+        # Prompt for Player to Hit or Stand
+        hit_or_stand(deck, player_hand)
+        show_some(player_hand, dealer_hand)
+
+        if player_hand.value > 21:
+            player_busts(player_hand, dealer_hand)
+            break
+
+    # If Player hasn't busted, play Dealer's hand
+    if player_hand.value <= 21:
+
+        while dealer_hand.value < 17:
+            hit(deck, dealer_hand)
+
+        # Show all cards
+        time.sleep(1)
+        print(" Final Results ")
+
+        show_all(player_hand, dealer_hand)
+
+        # Test different winning scenarios
+        if dealer_hand.value > 21:
+            dealer_busts(player_hand, dealer_hand)
+
+        elif dealer_hand.value > player_hand.value:
+            dealer_wins(player_hand, dealer_hand)
+
+        elif dealer_hand.value < player_hand.value:
+            player_wins(player_hand, dealer_hand)
+
         else:
-            return "Dealer wins!"
+            push(player_hand, dealer_hand)
 
-    def play(self):
-        print("Welcome to Blackjack!")
-        self.deal_initial_cards()
-
-        # Player's turn
-        player_result = self.player_turn()
-        if player_result == 'bust':
-            return
-
-        # Dealer's turn
-        self.dealer_turn()
-
-        # Determine the winner
-        result = self.determine_winner()
-        print(result)
-
-# Play the game
-if __name__ == "__main__":
-    game = BlackjackGame()
-    game.play()
+    # Ask to play again
+    new_game = input("\nPlay another hand? [Y/N] ")
+    while new_game.lower() not in ["y", "n"]:
+        new_game = input("Invalid Input. Please enter 'y' or 'n' ")
+    if new_game[0].lower() == "y":
+        playing = True
+        continue
+    else:
+        print("\n Thanks for playing! \n")
+        break
